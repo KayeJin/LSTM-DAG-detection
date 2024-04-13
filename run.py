@@ -16,6 +16,7 @@ RESULT_FILE = 'results.pkl'
 
 def run_experiments(isbigram=True, islstm=True, nfolds=10):
     """Runs all experiments"""
+    isbigram = False #不跑bigram
     bigram_results = None
     lstm_results = None
 
@@ -29,15 +30,21 @@ def run_experiments(isbigram=True, islstm=True, nfolds=10):
 
 def create_figs(isbigram=True, islstm=True, nfolds=10, force=False):
     """Create figures"""
+    isbigram = False
     # Generate results if needed
     if force or (not os.path.isfile(RESULT_FILE)):
         bigram_results, lstm_results = run_experiments(isbigram, islstm, nfolds)
 
         results = {'bigram': bigram_results, 'lstm': lstm_results}
 
-        pickle.dump(results, open(RESULT_FILE, 'w'))
+        with open(RESULT_FILE, 'wb') as f:
+            pickle.dump(results, f)
+
+        # pickle.dump(results, open(RESULT_FILE, 'w'))
     else:
-        results = pickle.load(open(RESULT_FILE))
+        with open(RESULT_FILE, 'rb') as f:
+            results = pickle.load(f)
+        # results = pickle.load(open(RESULT_FILE))
 
     # Extract and calculate bigram ROC
     if results['bigram']:
@@ -50,7 +57,7 @@ def create_figs(isbigram=True, islstm=True, nfolds=10, force=False):
             tpr.append(t_tpr)
         bigram_binary_fpr, bigram_binary_tpr, bigram_binary_auc = calc_macro_roc(fpr, tpr)
 
-    # xtract and calculate LSTM ROC
+    # extract and calculate LSTM ROC
     if results['lstm']:
         lstm_results = results['lstm']
         fpr = []
@@ -60,14 +67,14 @@ def create_figs(isbigram=True, islstm=True, nfolds=10, force=False):
             fpr.append(t_fpr)
             tpr.append(t_tpr)
         lstm_binary_fpr, lstm_binary_tpr, lstm_binary_auc = calc_macro_roc(fpr, tpr)
-
+    
     # Save figure
     from matplotlib import pyplot as plt
     with plt.style.context('bmh'):
         plt.plot(lstm_binary_fpr, lstm_binary_tpr,
                  label='LSTM (AUC = %.4f)' % (lstm_binary_auc, ), rasterized=True)
-        plt.plot(bigram_binary_fpr, bigram_binary_tpr,
-                 label='Bigrams (AUC = %.4f)' % (bigram_binary_auc, ), rasterized=True)
+        # plt.plot(bigram_binary_fpr, bigram_binary_tpr,
+        #          label='Bigrams (AUC = %.4f)' % (bigram_binary_auc, ), rasterized=True)
 
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
@@ -78,7 +85,6 @@ def create_figs(isbigram=True, islstm=True, nfolds=10, force=False):
 
         plt.tick_params(axis='both', labelsize=22)
         plt.savefig('results.png')
-
 def calc_macro_roc(fpr, tpr):
     """Calcs macro ROC on log scale"""
     # Create log scale domain
@@ -87,7 +93,7 @@ def calc_macro_roc(fpr, tpr):
     # Then interpolate all ROC curves at this points
     mean_tpr = np.zeros_like(all_fpr)
     for i in range(len(tpr)):
-        mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+        mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
 
     return all_fpr, mean_tpr / len(tpr), auc(all_fpr, mean_tpr) / len(tpr)
 
